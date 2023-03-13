@@ -47,24 +47,30 @@ void setup()
   }
 
   timestamp = millis();
+
+  display.clear();
+  display.draw_string(0, 0, "Starting up...");
+  display.display();
 }
 
 
 void loop()
 {
-  display.draw_string(0, 0, "foo bar");
-  display.draw_pixel(0,0);
-  display.draw_pixel(127,0);
-  display.display();
-  
-  if ((millis() - timestamp) > 9000) {
+  if (!vescComm.fwVersionMajor) {
     Serial.println("Sending packet get firmware version");
-    
+    // then read the firmware
     vescComm.getFwVersion();
 
-    Serial.println("...sent!");
-    timestamp = millis();
+    char szTemp[16];
+    sprintf(szTemp, "VESC FW %d.%d", vescComm.fwVersionMajor, vescComm.fwVersionMinor);
+    Serial.println(szTemp);
+    display.clear();
+    display.draw_string(0, 0, szTemp);
+    display.display();
+
+    delay(500);
   }
+
 
 }
 

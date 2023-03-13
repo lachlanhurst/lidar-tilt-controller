@@ -264,8 +264,8 @@ class VescComm {
     uint8_t readBufferInfoLength = 0;
 
   public:
-    uint8_t fwVersionMajor;
-    uint8_t fwVersionMinor;
+    uint8_t fwVersionMajor = 0;
+    uint8_t fwVersionMinor = 0;
 
   void getFwVersion() {    
     CAN.beginExtendedPacket(
@@ -279,6 +279,15 @@ class VescComm {
     batchRead();
 
     printBuffer();
+
+    parseFwVersion();
+  }
+
+  bool parseFwVersion() {
+    uint8_t comm_fw_version = readBuffer[0];
+    fwVersionMajor = readBuffer[1];
+    fwVersionMinor = readBuffer[2];
+    return true;
   }
 
   void printBuffer() {
