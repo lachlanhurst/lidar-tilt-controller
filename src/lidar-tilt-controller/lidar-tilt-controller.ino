@@ -13,6 +13,13 @@ uint32_t timestamp;
 
 VescComm vescComm;
 
+bool requestedFwVersion = false;
+bool running = false;
+
+void onReceive(int packetSize) {
+  vescComm.onReceive(packetSize);
+}
+
 void setup()
 {
   // Begin serial debug
@@ -37,16 +44,31 @@ void setup()
   display.clear();
   display.draw_string(0, 0, "Starting up...");
   display.display();
+
+  CAN.onReceive(onReceive);
 }
 
 
 void loop()
 {
-  if (!vescComm.fwVersionMajor) {
+  if (running) {
+    display.clear();
+    char sTemp[32];
+    sprintf(sTemp, "erpm: %d", vescComm.erpm);
+    display.println(sTemp);
+    sprintf(sTemp, "current: %0.1f", vescComm.current);
+    display.println(sTemp);
+    sprintf(sTemp, "Temp: f %0.1f, m %0.1f", vescComm.tempFet, vescComm.tempMotor);
+    display.println(sTemp);
+
+    display.display();
+  } else if (!vescComm.fwVersionMajor && !requestedFwVersion) {
     Serial.println("Sending packet get firmware version");
     // then read the firmware
+    vescComm.initRequest();
     vescComm.getFwVersion();
-
+    requestedFwVersion = true;
+  } else if (requestedFwVersion && vescComm.fwVersionMajor) {
     char szTemp[16];
     sprintf(szTemp, "VESC FW %d.%d", vescComm.fwVersionMajor, vescComm.fwVersionMinor);
     Serial.println(szTemp);
@@ -55,8 +77,15 @@ void loop()
     display.display();
 
     delay(500);
+    requestedFwVersion = false;
+    running = true;
   }
 
+  // Serial.print("temp fet = ");
+  // Serial.println(vescComm.tempFet);
+  // Serial.print("temp motor = ");
+  // Serial.println(vescComm.tempMotor);
 
+  delay(200);
 }
 
