@@ -267,6 +267,23 @@ class VescComm {
     uint8_t fwVersionMajor = 0;
     uint8_t fwVersionMinor = 0;
 
+  void setup() {
+    // CAN setup
+    pinMode(PIN_CAN_STANDBY, OUTPUT);
+    digitalWrite(PIN_CAN_STANDBY, false); // turn off STANDBY
+    pinMode(PIN_CAN_BOOSTEN, OUTPUT);
+    digitalWrite(PIN_CAN_BOOSTEN, true); // turn on booster
+    // start the CAN bus at 500 kbps
+    // this was 250k, but this may have an issue
+    // see here https://github.com/adafruit/arduino-CAN/issues/3
+    // VESC also defaults to 500k
+    if (!CAN.begin(500000)) {
+      Serial.println("Starting CAN failed!");
+      while (1);
+    }
+  }
+
+
   void getFwVersion() {    
     CAN.beginExtendedPacket(
       VESC_CAN_ID | ((uint32_t)CAN_PACKET_PROCESS_SHORT_BUFFER << 8)
@@ -316,38 +333,49 @@ class VescComm {
     while (!infoRecieved) {
 
       int packetSize = CAN.parsePacket();
-      Serial.print("packetSize ");
-      Serial.print(packetSize);
-      Serial.print(" (");
-      Serial.print(CAN.packetDlc());
-      Serial.println(") ");
+      // Serial.print("packetSize ");
+      // Serial.print(packetSize);
+      // Serial.print(" (");
+      // Serial.print(CAN.packetDlc());
+      // Serial.println(") ");
       while (packetSize) {
         long can_id = CAN.packetId();
         if (CAN.packetRtr()) {
           // skip these
         } else if (CAN.packetExtended()){
           if(can_id ==  ((uint16_t)CAN_PACKET_FILL_RX_BUFFER << 8) + THIS_CAN_ID) {
-            Serial.print("can_id ");
-            Serial.println(can_id);
-            Serial.println("in buffer ");
+            // Serial.print("can_id ");
+            // Serial.println(can_id);
+            // Serial.println("in buffer ");
             int packetPosition = CAN.read();
             for (int i=0; i<packetSize-1; i++) {
               readBuffer[readBufferLength + i] = CAN.read();
-              Serial.print(readBuffer[readBufferLength + i], HEX);
-              Serial.print(" ");
+              // Serial.print(readBuffer[readBufferLength + i], HEX);
+              // Serial.print(" ");
             }
             Serial.println();
             readBufferLength = readBufferLength + packetSize - 1;
           } else if(can_id ==  ((uint16_t)CAN_PACKET_PROCESS_RX_BUFFER << 8) + THIS_CAN_ID) {
-            Serial.print("can_id ");
-            Serial.println(can_id);
-            Serial.println("in buffer info");
+            // Serial.print("can_id ");
+            // Serial.println(can_id);
+            // Serial.println("in buffer info");
             for (int i=0; i<packetSize; i++) {
               readBufferInfo[readBufferInfoLength + i] = CAN.read();
             }
             readBufferInfoLength = readBufferInfoLength + packetSize;
             infoRecieved = true;
             break;
+          } else {
+            Serial.print("can_id ");
+            Serial.println(can_id, HEX);
+            Serial.println("in buffer info");
+            for (int i=0; i<packetSize; i++) {
+              uint8_t pv = CAN.read();
+              char buffer[2];
+              sprintf (buffer, "%02x", pv);
+              Serial.print(buffer);
+              Serial.print(" ");
+            }
           }
         }
 
@@ -357,10 +385,10 @@ class VescComm {
 
 
     uint16_t supposedLength = ((uint16_t)readBufferInfo[2] << 8) + readBufferInfo[3];
-    Serial.print("lengths ");
-    Serial.print(supposedLength);
-    Serial.print(" ");
-    Serial.println(readBufferLength);
+    // Serial.print("lengths ");
+    // Serial.print(supposedLength);
+    // Serial.print(" ");
+    // Serial.println(readBufferLength);
     if(readBufferLength != supposedLength){
       readBufferLength = 0;
       readBufferInfoLength = 0;

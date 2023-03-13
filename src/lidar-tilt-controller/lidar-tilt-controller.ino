@@ -1,5 +1,4 @@
 #include <Wire.h>
-#include <CAN.h>
 
 #include "oled.h"
 #include "vesc_comm.cpp"
@@ -31,20 +30,7 @@ void setup()
   // Begin display
   display.begin(myWire);
 
-  // CAN setup
-  pinMode(PIN_CAN_STANDBY, OUTPUT);
-  digitalWrite(PIN_CAN_STANDBY, false); // turn off STANDBY
-  pinMode(PIN_CAN_BOOSTEN, OUTPUT);
-  digitalWrite(PIN_CAN_BOOSTEN, true); // turn on booster
-  
-  // start the CAN bus at 500 kbps
-  // this was 250k, but this may have an issue
-  // see here https://github.com/adafruit/arduino-CAN/issues/3
-  // VESC also defaults to 500k
-  if (!CAN.begin(500000)) {
-    Serial.println("Starting CAN failed!");
-    while (1);
-  }
+  vescComm.setup();
 
   timestamp = millis();
 
