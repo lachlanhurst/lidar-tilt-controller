@@ -54,6 +54,9 @@ void setup()
 void loop()
 {
   if (running) {
+    vescComm.initRequest();
+    vescComm.getImuData();
+
     display.clear();
     char sTemp[32];
     sprintf(sTemp, "erpm: %d", vescComm.erpm);
@@ -62,8 +65,13 @@ void loop()
     display.println(sTemp);
     sprintf(sTemp, "Temp: f %0.1f, m %0.1f", vescComm.tempFet, vescComm.tempMotor);
     display.println(sTemp);
+    sprintf(sTemp, "RPY: %0.1f, %0.1f, %0.1f", vescComm.roll, vescComm.pitch, vescComm.yaw);
+    display.println(sTemp);
+    sprintf(sTemp, "Acc: %0.1f, %0.1f, %0.1f", vescComm.accX, vescComm.accY, vescComm.accZ);
+    display.println(sTemp);
 
     display.display();
+
   } else if (!vescComm.fwVersionMajor && !requestedFwVersion) {
     Serial.println("Sending packet get firmware version");
     // then read the firmware

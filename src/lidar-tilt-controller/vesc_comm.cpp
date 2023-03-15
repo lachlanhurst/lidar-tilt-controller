@@ -11,7 +11,7 @@ class VescComm {
   private:
     int responsesLength = 0;
 
-    uint8_t readBuffer[50];
+    uint8_t readBuffer[100];
     uint8_t readBufferLength = 0;
     uint8_t readBufferInfo[8];
     uint8_t readBufferInfoLength = 0;
@@ -28,6 +28,13 @@ class VescComm {
     float_t tempMotor;
     float_t currentIn;
     float_t pidPosNow;
+
+    // IMU data
+    float_t roll, pitch, yaw;
+    float_t accX, accY, accZ;
+    float_t gyroX, gyroY, gyroZ;
+    float_t magX, magY, magZ;
+    float_t q0, q1, q2, q3;
 
 
   void setup() {
@@ -46,21 +53,71 @@ class VescComm {
     }
   }
 
-
-  void getFwVersion() {    
+  void requestCommand(COMM_PACKET_ID command) {
     CAN.beginExtendedPacket(
       VESC_CAN_ID | ((uint32_t)CAN_PACKET_PROCESS_SHORT_BUFFER << 8)
     );
     CAN.write(THIS_CAN_ID);
     CAN.write(0x00);
-    CAN.write(COMM_FW_VERSION);
+    CAN.write(command);
     CAN.endPacket();
+  }
+
+  void getFwVersion() {
+    requestCommand(COMM_FW_VERSION);
   }
 
   bool parseFwVersion() {
     uint8_t comm_fw_version = readBuffer[0];
     fwVersionMajor = readBuffer[1];
     fwVersionMinor = readBuffer[2];
+    return true;
+  }
+
+  void getImuData() {
+    CAN.beginExtendedPacket(
+      VESC_CAN_ID | ((uint32_t)CAN_PACKET_PROCESS_SHORT_BUFFER << 8)
+    );
+    CAN.write(THIS_CAN_ID);
+    CAN.write(0x00);
+    CAN.write(COMM_GET_IMU_DATA);
+    // Next four values are the mask which is used to limit what IMU data is returned
+    // 0xFFFFFFFF means everything
+    // NOTE: if you change this you'll need to update the parseImuData fn too
+    CAN.write(0xFF);
+    CAN.write(0xFF);
+    CAN.write(0xFF);
+    CAN.write(0xFF);
+    CAN.endPacket();
+  }
+
+  bool parseImuData() {
+    // start at 1, because byte 0 is just the command id
+    int32_t ind = 1;
+
+    uint32_t mask = bufferGetInt16(readBuffer, &ind);
+
+    roll = bufferGetFloat32(readBuffer, &ind);
+    pitch = bufferGetFloat32(readBuffer, &ind);
+    yaw = bufferGetFloat32(readBuffer, &ind);
+
+    accX = bufferGetFloat32(readBuffer, &ind);
+    accY = bufferGetFloat32(readBuffer, &ind);
+    accZ = bufferGetFloat32(readBuffer, &ind);
+
+    gyroX = bufferGetFloat32(readBuffer, &ind);
+    gyroY = bufferGetFloat32(readBuffer, &ind);
+    gyroZ = bufferGetFloat32(readBuffer, &ind);
+
+    magX = bufferGetFloat32(readBuffer, &ind);
+    magY = bufferGetFloat32(readBuffer, &ind);
+    magZ = bufferGetFloat32(readBuffer, &ind);
+
+    q0 = bufferGetFloat32(readBuffer, &ind);
+    q1 = bufferGetFloat32(readBuffer, &ind);
+    q2 = bufferGetFloat32(readBuffer, &ind);
+    q3 = bufferGetFloat32(readBuffer, &ind);
+
     return true;
   }
 
@@ -76,7 +133,7 @@ class VescComm {
   void initRequest() {
     // Clear buffer
     readBufferLength = 0;
-    for(int i = 0; i < 50; i++) {
+    for(int i = 0; i < 100; i++) {
       readBuffer[i] = 0; //(Not really necessary ?)
     }
     readBufferInfoLength = 0;
@@ -88,11 +145,15 @@ class VescComm {
   void processCommandBuffer() {
     uint8_t command = readBuffer[0];
     if (command == COMM_FW_VERSION) {
-      fwVersionMajor = readBuffer[1];
-      fwVersionMinor = readBuffer[2];
-      printBuffer();
+      parseFwVersion();
+    } else if (command == COMM_GET_IMU_DATA) {
+      // Serial.println("IMU data");
+      // printBuffer();
+      parseImuData();
+    } else {
+      Serial.println("Other command response");
+      Serial.println(command);
     }
-
   }
 
   void processStatusPacket(uint8_t vescId, uint8_t commandId, uint8_t data[8]) {
@@ -147,8 +208,20 @@ class VescComm {
         } else {
           processCommandBuffer();
         }
-      }
-      else {
+      } else if(can_id ==  ((uint16_t)CAN_PACKET_PROCESS_SHORT_BUFFER << 8) + THIS_CAN_ID) {
+        Serial.println("other");
+        Serial.println(can_id, HEX);
+        u_int8_t data[8];
+        for (int i=0; i<packetSize; i++) {
+          uint8_t pv = CAN.read();
+          data[i] = pv;
+
+          char buffer[2];
+          sprintf (buffer, "%02x", data[i]);
+          Serial.print(buffer);
+        }
+        Serial.println();
+      } else {
         // then it's a status message
         // these are automatically sent out from the VESC based on a frequency
         // in the settings
@@ -178,6 +251,26 @@ class VescComm {
             ((uint32_t) buffer[*index + 3]);
     *index += 4;
     return res;
+  }
+
+  float bufferGetFloat32(const uint8_t *buffer, int32_t *index) {
+    uint32_t res = bufferGetInt32(buffer, index);
+
+    int e = (res >> 23) & 0xFF;
+    int fr = res & 0x7FFFFF;
+    bool negative = res & (1 << 31);
+
+    float f = 0.0;
+    if (e != 0 || fr != 0) {
+        f = (float)fr / (8388608.0 * 2.0) + 0.5;
+        e -= 126;
+    }
+
+    if (negative) {
+        f = -f;
+    }
+
+    return ldexpf(f, e);
   }
 
 };
