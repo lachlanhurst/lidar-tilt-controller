@@ -72,6 +72,9 @@ void loop()
 
     display.display();
 
+    vescComm.initRequest();
+    vescComm.getFloatPackageRtData();
+
   } else if (!vescComm.fwVersionMajor && !requestedFwVersion) {
     Serial.println("Sending packet get firmware version");
     // then read the firmware

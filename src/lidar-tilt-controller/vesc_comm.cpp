@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <CAN.h>
 #include <Arduino.h>
 
@@ -35,6 +36,16 @@ class VescComm {
     float_t gyroX, gyroY, gyroZ;
     float_t magX, magY, magZ;
     float_t q0, q1, q2, q3;
+
+    // float package data
+    float_t floatPidValue;
+    float_t floatPitchAngle;
+    float_t floatRollAngle;
+    uint8_t floatState;
+    uint8_t floatSetpointAdjustmentType;
+    uint8_t floatSwitchState;
+    uint8_t floatAdc1;
+    uint8_t floatAdc2;
 
 
   void setup() {
@@ -121,6 +132,43 @@ class VescComm {
     return true;
   }
 
+  void getFloatPackageRtData() {
+    CAN.beginExtendedPacket(
+      VESC_CAN_ID | ((uint32_t)CAN_PACKET_PROCESS_SHORT_BUFFER << 8)
+    );
+    CAN.write(THIS_CAN_ID);
+    CAN.write(0x00);
+    CAN.write(COMM_CUSTOM_APP_DATA);
+    // magic number is required by float package
+    CAN.write(101);
+    // the nested float package command that we want to run
+    // these commands are implemented within the float package itself
+    CAN.write(FLOAT_COMMAND_GET_RTDATA);
+
+    CAN.endPacket();
+  }
+
+  bool parseFloatPackageData() {
+    // start at 2, because byte 0 is just the command id
+    // and byte index 1 is just the float package magic number
+    int32_t ind = 2;
+
+    uint8_t floatCommand = readBuffer[ind++];
+    if (floatCommand == FLOAT_COMMAND_GET_RTDATA) {
+      floatPidValue = bufferGetFloat32(readBuffer, &ind);
+      floatPitchAngle = bufferGetFloat32(readBuffer, &ind);
+      floatRollAngle = bufferGetFloat32(readBuffer, &ind);
+      uint8_t v = readBuffer[ind++];
+      floatState = v & 0xF;
+      floatSetpointAdjustmentType = v >> 4;
+      floatSwitchState = readBuffer[ind++];
+      floatAdc1 = bufferGetFloat32(readBuffer, &ind);
+      floatAdc2 = bufferGetFloat32(readBuffer, &ind);
+    }
+
+    return true;
+  }
+
   void printBuffer() {
     for(int i = 0; i < readBufferLength; i++) {
       char buffer[2];
@@ -150,9 +198,18 @@ class VescComm {
       // Serial.println("IMU data");
       // printBuffer();
       parseImuData();
+    } else if (command == COMM_CUSTOM_APP_DATA) {
+      // Serial.println("Custom app data");
+      // Serial.println(command);
+      // printBuffer();
+      // check for the float package magic number
+      if (readBuffer[1] == 101) {
+        parseFloatPackageData();
+      }
     } else {
       Serial.println("Other command response");
       Serial.println(command);
+      printBuffer();
     }
   }
 
