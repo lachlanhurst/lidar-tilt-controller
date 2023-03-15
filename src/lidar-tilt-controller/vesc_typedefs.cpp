@@ -1,3 +1,16 @@
+enum {
+	FLOAT_COMMAND_GET_INFO = 0,		// get version / package info
+	FLOAT_COMMAND_GET_RTDATA = 1,	// get rt data
+	FLOAT_COMMAND_RT_TUNE = 2,		// runtime tuning (don't write to eeprom)
+	FLOAT_COMMAND_TUNE_DEFAULTS = 3,// set tune to defaults (no eeprom)
+	FLOAT_COMMAND_CFG_SAVE = 4,		// save config to eeprom
+	FLOAT_COMMAND_CFG_RESTORE = 5,	// restore config from eeprom
+	FLOAT_COMMAND_TUNE_OTHER = 6,	// make runtime changes to startup/etc
+	FLOAT_COMMAND_RC_MOVE = 7,		// move motor while board is idle
+	FLOAT_COMMAND_BOOSTER = 8,		// change booster settings
+	FLOAT_COMMAND_PRINT_INFO = 9,	// print verbose info
+} float_commands;
+
 // Communication commands
 typedef enum {
 	COMM_FW_VERSION = 0,
