@@ -16,6 +16,8 @@ VescComm vescComm;
 bool requestedFwVersion = false;
 bool running = false;
 
+// This should really be included iin vesc_comm.cpp
+// just need to figure out how!
 void onReceive(int packetSize) {
   vescComm.onReceive(packetSize);
 }
