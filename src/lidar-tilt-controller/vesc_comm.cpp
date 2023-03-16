@@ -132,6 +132,25 @@ class VescComm {
     return true;
   }
 
+  void setThrottle(uint8_t val) {
+    // sets remote throttle
+    // 0 = - 100%, 255 = 100%
+    CAN.beginExtendedPacket(
+      VESC_CAN_ID | ((uint32_t)CAN_PACKET_PROCESS_SHORT_BUFFER << 8)
+    );
+    CAN.write(THIS_CAN_ID);
+    CAN.write(0x00);
+    CAN.write(COMM_SET_CHUCK_DATA);
+    CAN.write(0x0);
+    CAN.write(val);
+    CAN.write(0x0);
+    CAN.write(0x0);
+    CAN.write(0x00);
+    CAN.write(0x00);
+    CAN.write(0x00);
+    CAN.endPacket();
+  }
+
   void getFloatPackageRtData() {
     CAN.beginExtendedPacket(
       VESC_CAN_ID | ((uint32_t)CAN_PACKET_PROCESS_SHORT_BUFFER << 8)

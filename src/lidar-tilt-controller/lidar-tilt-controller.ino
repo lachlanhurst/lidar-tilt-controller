@@ -75,6 +75,11 @@ void loop()
     vescComm.initRequest();
     vescComm.getFloatPackageRtData();
 
+    // uint32_t dt = millis() - timestamp;
+    // uint8_t v = (sin((float_t)dt/5000.0) + 1)/2 * 255;
+    // vescComm.initRequest();
+    // vescComm.setThrottle(v);
+
   } else if (!vescComm.fwVersionMajor && !requestedFwVersion) {
     Serial.println("Sending packet get firmware version");
     // then read the firmware
